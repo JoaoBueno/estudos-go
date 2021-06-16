@@ -6,10 +6,20 @@ import (
 	"strconv"
 	"fmt"
 	"encoding/json"
+	"database/sql"
+	_ "github.com/lib/pq"
+)
+
+const (
+    host     = "192.168.188.1"
+    port     = 5432
+    user     = "postgres"
+    password = "postgres"
+    dbname   = "fullcontrol"
 )
 
 type Xfd struct {
-	Name string		`json:"name"`
+	// Name string		`json:"name"`
 	Offset int		`json:"offset"`
 	Length int      `json:"length"`
 	Type int		`json:"type"`
@@ -21,7 +31,34 @@ type Xfd struct {
 	Format string	`json:"format"`
 }
 
-var xfdp map[int]Xfd
+var xfdp map[string]Xfd
+var db *sql.DB
+
+func connect() error {
+	// connection string
+	psqlconn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
+
+	var err error
+	// open database
+	db, err = sql.Open("postgres", psqlconn)
+
+	if err != nil {
+		return err
+	}
+		
+	// close database
+	defer db.Close()
+	
+	// check db
+	err = db.Ping()
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Conectado!")
+
+	return err
+}
 
 func atoi(s string) int {
 	i, err := strconv.Atoi(s)
@@ -59,6 +96,37 @@ func atoi(s string) int {
 	return i
 }
 
+/*XFDCheck is a func to check if xfd is ok*/
+//export XFDCheck
+func XFDCheck(arquivo *C.char, md5s *C.char, ret *int) {
+	arq := C.GoString(arquivo)
+	md5 := C.GoString(md5s)
+	fmt.Println(arq, md5)
+	if db == nil {
+		err := connect()
+		if err != nil {
+			*ret = -1
+			return
+		}
+	}
+
+	*ret = 111
+	
+	return
+}
+
+/*XFDP is a func to parse a XFD*/
+//export XFDP
+func XFDP(str *C.char, ret *int) {
+	strl := C.GoString(str)
+	strs := strings.Split(strl, "\x0a")
+	for i := 0; i < len(strs); i++ {
+		fmt.Println(strs[i])
+	}
+	
+	return
+}
+
 /*XFDParse is a func to parse a XFD*/
 //export XFDParse
 func XFDParse(str *C.char, ret *int) {
@@ -66,10 +134,10 @@ func XFDParse(str *C.char, ret *int) {
 	strs := strings.Split(strl, ",")
 	i := len(xfdp)
 	if i == 0 {
-		xfdp = make(map[int]Xfd)
+		xfdp = make(map[string]Xfd)
 	}
-	xfdp[i] = Xfd{
-		    Name: strings.TrimSpace(strs[0]), 
+	xfdp[strings.TrimSpace(strs[0])] = Xfd{
+		    // Name: strings.TrimSpace(strs[0]), 
             Offset: atoi(strs[1]),
             Length: atoi(strs[2]),
             Type: atoi(strs[3]),
@@ -86,13 +154,24 @@ func XFDParse(str *C.char, ret *int) {
 /*XFDtoJson is a func to convert XFD to JSON*/
 //export XFDtoJson
 func XFDtoJson(xfdjson **C.char, length *int) {
-	j, _ := json.MarshalIndent(xfdp, "", "    ")
+	// j, _ := json.MarshalIndent(xfdp, "", "    ")
+	j, _ := json.Marshal(xfdp)
 	var reta string
 	reta = fmt.Sprint(string(j))
-	fmt.Println(reta)
-	fmt.Println(len(reta))
+	// fmt.Println(reta)
+	// fmt.Println(len(reta))
 	*xfdjson = C.CString(reta)
 	*length = len(reta)
+}
+
+/*XFDCreateTable is a func to create table from XFD*/
+//export XFDCreateTable
+func XFDCreateTable(xfdjson **C.char, length *int) {
+	// fmt.Println(xfdp["NFC-NUMERO"])
+	for k, v := range xfdp { 
+		fmt.Println(k, v.Offset)
+	}
+	fmt.Println(len(xfdp))
 }
 
 func main() {}

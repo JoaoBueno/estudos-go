@@ -69,11 +69,20 @@ extern "C" {
 #endif
 
 
+/*XFDCheck is a func to check if xfd is ok*/
+extern void XFDCheck(char* arquivo, char* md5s, GoInt* ret);
+
+/*XFDP is a func to parse a XFD*/
+extern void XFDP(char* str, GoInt* ret);
+
 /*XFDParse is a func to parse a XFD*/
 extern void XFDParse(char* str, GoInt* ret);
 
 /*XFDtoJson is a func to convert XFD to JSON*/
 extern void XFDtoJson(char** xfdjson, GoInt* length);
+
+/*XFDCreateTable is a func to create table from XFD*/
+extern void XFDCreateTable(char** xfdjson, GoInt* length);
 
 #ifdef __cplusplus
 }
