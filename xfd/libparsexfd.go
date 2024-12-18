@@ -2,33 +2,34 @@ package main
 
 import (
 	"C"
-	"strings"
-	"strconv"
-	"fmt"
-	"encoding/json"
 	"database/sql"
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
+
 	_ "github.com/lib/pq"
 )
 
 const (
-    host     = "192.168.188.1"
-    port     = 5432
-    user     = "postgres"
-    password = "postgres"
-    dbname   = "fullcontrol"
+	host     = "192.168.188.1"
+	port     = 5432
+	user     = "postgres"
+	password = "postgres"
+	dbname   = "fullcontrol"
 )
 
 type Xfd struct {
 	// Name string		`json:"name"`
-	Offset int		`json:"offset"`
-	Length int      `json:"length"`
-	Type int		`json:"type"`
-	Digits int		`json:"digits"`
-	Scale int		`json:"scale"`
-	UserType int	`json:"usertype"`
-	Condition int	`json:"condition"`
-	Level int		`json:"level"`
-	Format string	`json:"format"`
+	Offset    int    `json:"offset"`
+	Length    int    `json:"length"`
+	Type      int    `json:"type"`
+	Digits    int    `json:"digits"`
+	Scale     int    `json:"scale"`
+	UserType  int    `json:"usertype"`
+	Condition int    `json:"condition"`
+	Level     int    `json:"level"`
+	Format    string `json:"format"`
 }
 
 var xfdp map[string]Xfd
@@ -45,17 +46,12 @@ func connect() error {
 	if err != nil {
 		return err
 	}
-		
-	// close database
-	defer db.Close()
-	
+
 	// check db
 	err = db.Ping()
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("Conectado!")
 
 	return err
 }
@@ -88,7 +84,7 @@ func atoi(s string) int {
 		}
 		s = string(a)
 		i, err := strconv.Atoi(s)
-        	if err != nil {
+		if err != nil {
 			return 0
 		}
 		return i * -1
@@ -105,13 +101,36 @@ func XFDCheck(arquivo *C.char, md5s *C.char, ret *int) {
 	if db == nil {
 		err := connect()
 		if err != nil {
-			*ret = -1
+			db = nil
+			*ret = 10001 // erro de conexão
 			return
 		}
 	}
 
-	*ret = 111
-	
+	// close database
+	defer db.Close()
+
+	rows, err := db.Query(`SELECT "arquivo", "md5" FROM "fc_xfds"`)
+	if err != nil {
+		fmt.Println(err)
+		*ret = 10002 // erro de leitura
+		return
+	}
+
+	defer rows.Close()
+	for rows.Next() {
+		var arquivo string
+		var md5 int
+		err = rows.Scan(&arquivo, &md5)
+		if err != nil {
+			fmt.Println(err)
+			*ret = 10003 // erro de scan
+			return
+		}
+		fmt.Println(arquivo, md5)
+	}
+
+	*ret = 0
 	return
 }
 
@@ -123,7 +142,7 @@ func XFDP(str *C.char, ret *int) {
 	for i := 0; i < len(strs); i++ {
 		fmt.Println(strs[i])
 	}
-	
+
 	return
 }
 
@@ -137,16 +156,16 @@ func XFDParse(str *C.char, ret *int) {
 		xfdp = make(map[string]Xfd)
 	}
 	xfdp[strings.TrimSpace(strs[0])] = Xfd{
-		    // Name: strings.TrimSpace(strs[0]), 
-            Offset: atoi(strs[1]),
-            Length: atoi(strs[2]),
-            Type: atoi(strs[3]),
-            Digits: atoi(strs[4]),
-            Scale: atoi(strs[5]),
-            UserType: atoi(strs[6]),
-            Condition: atoi(strs[7]),
-            Level: atoi(strs[8]),
-            Format: strings.TrimSpace(strs[9])}
+		// Name: strings.TrimSpace(strs[0]),
+		Offset:    atoi(strs[1]),
+		Length:    atoi(strs[2]),
+		Type:      atoi(strs[3]),
+		Digits:    atoi(strs[4]),
+		Scale:     atoi(strs[5]),
+		UserType:  atoi(strs[6]),
+		Condition: atoi(strs[7]),
+		Level:     atoi(strs[8]),
+		Format:    strings.TrimSpace(strs[9])}
 	*ret = i
 	return
 }
@@ -168,7 +187,7 @@ func XFDtoJson(xfdjson **C.char, length *int) {
 //export XFDCreateTable
 func XFDCreateTable(xfdjson **C.char, length *int) {
 	// fmt.Println(xfdp["NFC-NUMERO"])
-	for k, v := range xfdp { 
+	for k, v := range xfdp {
 		fmt.Println(k, v.Offset)
 	}
 	fmt.Println(len(xfdp))
